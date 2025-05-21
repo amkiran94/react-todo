@@ -1,1 +1,81 @@
+name: CI/CD for React App with AWS S3 Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop  # Optional: For staging deployments
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  # Job to run tests and build app
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Lint the code to ensure coding standards
+      - name: Lint code
+        run: npm run lint  # Assuming you have a lint script in package.json
+
+      # Run unit tests
+      - name: Run tests
+        run: npm test -- --coverage  # Run tests and generate coverage report
+
+      # Build the app
+      - name: Build React app
+        run: npm run build
+
+  # Job to deploy the app to S3
+  deploy:
+    needs: build  # This job depends on the "build" job
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Deploy to Staging (Optional)
+      - name: Deploy to Staging (S3)
+        if: github.ref == 'refs/heads/develop'  # Only deploy from develop to staging
+        uses: jakejarvis/s3-sync-action@v0.5.0
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: 'ap-south-1'
+          bucket: 'todo-app-yourname-staging'  # Use a different bucket for staging
+          source_dir: './build'
+          destination_dir: '/'
+
+      # Deploy to Production (S3)
+      - name: Deploy to Production (S3)
+        if: github.ref == 'refs/heads/main'  # Only deploy from main to production
+        uses: jakejarvis/s3-sync-action@v0.5.0
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: 'ap-south-1'
+          bucket: 'todo-app-yourname'  # Production bucket name
+          source_dir: './build'
+          destination_dir: '/'
+
+      # Invalidate CloudFront Cache (Optional)
+      - name: Invalidate CloudFront Cache
+        if: github.ref == 'refs/heads/main'
+        run: |
+          aws cloudfront create-invalidation --distribution-id <your-cloudfront-id> --paths "/*"
 
