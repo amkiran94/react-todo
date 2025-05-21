@@ -28,7 +28,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Todo List New</h1>
+      <h1>Todo List New 2</h1>
       <TodoForm addTodo={addTodo} />
       <TodoList
         todos={todos}
